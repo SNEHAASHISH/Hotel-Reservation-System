@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Room Reservation System</title>
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Hotel Room Reservation System</h1>
+        <div class="controls">
+            <input type="number" id="room-count" min="1" max="5" placeholder="No of Rooms">
+            <button onclick="bookRooms()">Book</button>
+            <button onclick="resetBooking()">Reset</button>
+            <button onclick="randomizeRooms()">Random</button>
+        </div>
+        <div class="building">
+            <div class="staircase">Stairs/Lift</div>
+            <div id="room-grid" class="room-grid"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; SNEH AASHISH GUPTA | Last Updated: Jan '25</p>
+        <div class="social-links">
+            <a href="https://github.com/SNEHAASHISH" target="_blank"><i class="fab fa-github"></i></a>
+            <a href="https://www.linkedin.com/in/sneh-aashish-gupta/" target="_blank"><i class="fab fa-linkedin"></i></a>
+        </div>
+    </footer>
+
+    <script>
+        const roomGrid = document.getElementById('room-grid');
+
+        function renderRooms(rooms) {
+            roomGrid.innerHTML = '';
+            for (let floor = 10; floor >= 1; floor--) {
+                const floorDiv = document.createElement('div');
+                floorDiv.className = 'floor';
+
+                const floorLabel = document.createElement('div');
+                floorLabel.className = 'floor-label';
+                floorLabel.textContent = `Floor ${floor}`;
+                floorDiv.appendChild(floorLabel);
+
+                const floorRooms = rooms.filter(room => {
+                    if (floor === 10) {
+                        return room >= 1001 && room <= 1007;
+                    } else {
+                        return room >= (floor * 100) && room < ((floor + 1) * 100);
+                    }
+                }).slice(0, 10); // Limit to 10 rooms per floor
+
+                floorRooms.forEach(room => {
+                    const roomDiv = document.createElement('div');
+                    roomDiv.textContent = room;
+                    roomDiv.className = `room ${availableRooms[room] ? 'available' : 'booked'}`;
+                    if (availableRooms[room]) {
+                        roomDiv.innerHTML += '<i class="fas fa-key" style="color: goldenrod;"></i>';
+                    } else {
+                        roomDiv.innerHTML += '<i class="fas fa-lock" style="color: goldenrod;"><span style="color: silver;">&#9679;</span></i>';
+                    }
+                    floorDiv.appendChild(roomDiv);
+                });
+
+                roomGrid.appendChild(floorDiv);
+            }
+        }
+
+        let availableRooms = {};
+
+        function fetchAvailability() {
+            fetch('/availability')
+                .then(response => response.json())
+                .then(data => {
+                    availableRooms = data.available_rooms;
+                    renderRooms(Object.keys(availableRooms).map(Number));
+                });
+        }
+
+        function resetBooking() {
+            fetch('/reset', { method: 'POST' })
+                .then(response => response.json())
+                .then(() => {
+                    fetchAvailability();
+                    document.getElementById('room-count').value = ''; // Reset the input field
+                });
+        }
+
+        function randomizeRooms() {
+            fetch('/randomize', { method: 'POST' })
+                .then(response => response.json())
+                .then(() => fetchAvailability());
+        }
+
+        function bookRooms() {
+            const numRooms = document.getElementById('room-count').value;
+            if (!numRooms || numRooms < 1 || numRooms > 5) {
+                alert('Please enter a valid number of rooms (1-5).');
+                return;
+            }
+            fetch('/book', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ num_rooms: parseInt(numRooms) }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        alert(`Booked Rooms: ${data.booked_rooms.join(', ')}\nTravel Time: ${data.travel_time} minutes`);
+                        fetchAvailability();
+                    }
+                });
+        }
+
+        fetchAvailability();
+    </script>
+</body>
+</html>
